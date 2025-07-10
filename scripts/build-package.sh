@@ -37,3 +37,6 @@ dpkg-deb --build "$BUILD_DIR/install" "./${TERMUX_PKG_NAME}_${TERMUX_PKG_VERSION
 
 mkdir -p ../../output
 mv ./*.deb ../../output/
+
+echo "🧾 Files in output/:"
+ls -lh ../../output || echo "output folder missing!"
