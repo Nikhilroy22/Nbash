@@ -24,7 +24,7 @@ jobs:
         ./scripts/build-package.sh bash
 
     - name: Upload .deb artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v3
       with:
         name: bash-package
-        path: packages/jj.deb
+        path: output/*.deb

@@ -35,8 +35,8 @@ Description: Custom built package" > "$BUILD_DIR/install/DEBIAN/control"
 
 dpkg-deb --build "$BUILD_DIR/install" "./${TERMUX_PKG_NAME}_${TERMUX_PKG_VERSION}.deb"
 
-mkdir -p ../../output
-mv ./*.deb ../../output/
+mkdir -p "$GITHUB_WORKSPACE/output"
+mv ./*.deb "$GITHUB_WORKSPACE/output/"
 
 echo "🧾 Files in output/:"
 ls -lh ../../output || echo "output folder missing!"
