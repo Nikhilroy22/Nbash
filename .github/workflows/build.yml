@@ -1,13 +1,13 @@
-name: Build Hello C for Android ARMv7
+name: Build Bash & Hello for Android ARMv7
 
 on: [push, workflow_dispatch]
 
 jobs:
-  build-hello:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Repo
+    - name: Checkout Code
       uses: actions/checkout@v3
 
     - name: Install Dependencies
@@ -19,25 +19,49 @@ jobs:
         unzip -q android-ndk-r27c-linux.zip
         mv android-ndk-r27c ndk
 
-    - name: Build Hello for ARMv7
+    - name: Set Environment Variables
       run: |
-        export NDK=$GITHUB_WORKSPACE/ndk
-        export TOOLCHAIN=$NDK/toolchains/llvm/prebuilt/linux-x86_64
-        export PATH=$TOOLCHAIN/bin:$PATH
+        echo "TOOLCHAIN=$GITHUB_WORKSPACE/ndk/toolchains/llvm/prebuilt/linux-x86_64" >> $GITHUB_ENV
+        echo "PATH=$GITHUB_WORKSPACE/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH" >> $GITHUB_ENV
+        echo "CC=armv7a-linux-androideabi24-clang" >> $GITHUB_ENV
+        echo "CFLAGS=-fPIE -pie -std=gnu99" >> $GITHUB_ENV
+        echo "LDFLAGS=-fPIE -pie" >> $GITHUB_ENV
+        echo "CPPFLAGS=-std=gnu99" >> $GITHUB_ENV
 
-        export CC=armv7a-linux-androideabi24-clang
-        export CFLAGS="-fPIE -pie"
-        export LDFLAGS="-fPIE -pie"
-
+    - name: Build Hello Binary
+      run: |
         $CC $CFLAGS hello.c -o hello $LDFLAGS
-
         file hello
+        mkdir -p out
+        cp hello out/hello-armv7
 
-        mkdir -p $GITHUB_WORKSPACE/out
-        cp hello $GITHUB_WORKSPACE/out/hello-armv7
+    - name: Build Bash Binary
+      run: |
+        wget https://ftp.gnu.org/gnu/bash/bash-5.3.tar.gz
+        tar -xzf bash-5.3.tar.gz
+        cd bash-5.3
+
+        bash_cv_func_sigsetjmp=yes \
+        ./configure \
+          --host=armv7a-linux-androideabi \
+          --prefix=/data/data/com.termux/files/usr \
+          --disable-nls \
+          --without-bash-malloc \
+          --enable-job-control
+
+        make -j4
+
+        file bash
+        cp bash ../out/bash-armv7
 
     - name: Upload Hello Binary
       uses: actions/upload-artifact@v4
       with:
         name: hello-armv7
         path: out/hello-armv7
+
+    - name: Upload Bash Binary
+      uses: actions/upload-artifact@v4
+      with:
+        name: bash-armv7
+        path: out/bash-armv7
