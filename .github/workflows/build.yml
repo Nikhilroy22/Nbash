@@ -1,59 +1,46 @@
-name: Build Bash for Android ARMv7
+name: Build Bash for Android ARMv7 (NDK)
 
 on: [push, workflow_dispatch]
 
 jobs:
-  build-bash-armv7:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Code
+    - name: Checkout Repo
       uses: actions/checkout@v3
 
-    - name: Install dependencies
+    - name: Download Android NDK
       run: |
-        sudo apt update
-        sudo apt install -y \
-          gcc-arm-linux-gnueabihf \
-          make \
-          autoconf \
-          bison \
-          wget \
-          file
+        wget https://dl.google.com/android/repository/android-ndk-r25c-linux.zip
+        unzip android-ndk-r25c-linux.zip
+        mv android-ndk-r25c ndk
 
-    - name: Download and Extract Bash Source
+    - name: Setup NDK Environment
       run: |
+        export TOOLCHAIN=$GITHUB_WORKSPACE/ndk/toolchains/llvm/prebuilt/linux-x86_64
+        export PATH=$TOOLCHAIN/bin:$PATH
+        export CC=armv7a-linux-androideabi21-clang
+
         wget https://ftp.gnu.org/gnu/bash/bash-5.2.tar.gz
         tar -xzf bash-5.2.tar.gz
-        mv bash-5.2 bash-src
+        cd bash-5.2
 
-    - name: Configure for ARMv7 (Android-Compatible)
-      working-directory: bash-src
-      run: |
-        CC=arm-linux-gnueabihf-gcc \
         ./configure \
-          --host=arm-linux-gnueabihf \
-          --build=x86_64-linux-gnu \
-          --prefix=/data/data/com.npuja.nikhil/files \
+          --host=arm-linux-androideabi \
           --without-bash-malloc \
-          --enable-static-link \
           bash_cv_func_sigsetjmp=yes
 
-    - name: Build Bash
-      working-directory: bash-src
-      run: make -j4
+        make -j4
 
-    - name: Show Binary Info
-      run: file bash-src/bash
+        file bash
+        strip bash
+        chmod +x bash
+        mkdir -p $GITHUB_WORKSPACE/out
+        cp bash $GITHUB_WORKSPACE/out/bash-android-armv7
 
-    - name: Rename Output for Android Asset
-      run: |
-        mkdir -p out/
-        cp bash-src/bash out/bash-armv7
-        chmod +x out/bash-armv7
-
-    - name: Upload Bash Binary
+    - name: Upload Binary
       uses: actions/upload-artifact@v4
       with:
-        name: bash-armv7
-        path: out/bash-armv7
+        name: bash-android-armv7
+        path: out/bash-android-armv7
