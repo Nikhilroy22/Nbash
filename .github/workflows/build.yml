@@ -1,55 +1,52 @@
-name: Build Bash for Android ARMv7
+name: Build Bash Android ARMv7 PIE
 
 on: [push, workflow_dispatch]
 
 jobs:
-  build-bash-armv7:
+  build-bash:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Code
+    - name: Checkout
       uses: actions/checkout@v3
 
     - name: Install dependencies
       run: sudo apt update && sudo apt install -y wget unzip file
 
-    - name: Download Android NDK
+    - name: Download Android NDK r27c
       run: |
-        wget https://dl.google.com/android/repository/android-ndk-r25c-linux.zip
-        unzip -q android-ndk-r25c-linux.zip
-        mv android-ndk-r25c ndk
+        wget https://dl.google.com/android/repository/android-ndk-r27c-linux.zip
+        unzip -q android-ndk-r27c-linux.zip
+        mv android-ndk-r27c ndk
 
-    - name: Build Bash for Android
+    - name: Build Bash for Android ARMv7
       run: |
-        # Set up NDK toolchain
+        # Setup env
         export TOOLCHAIN=$GITHUB_WORKSPACE/ndk/toolchains/llvm/prebuilt/linux-x86_64
         export PATH=$TOOLCHAIN/bin:$PATH
-        export CC=armv7a-linux-androideabi21-clang
+        export CC=armv7a-linux-androideabi24-clang  # Android 7.0 (API 24)
+        export CFLAGS="-fPIE -pie"
+        export LDFLAGS="-fPIE -pie"
 
-        # Download Bash source
-        wget https://ftp.gnu.org/gnu/bash/bash-5.3.tar.gz
+        # Download bash
+        wget https://ftp.gnu.org/gnu/bash/bash-5.2.tar.gz
         tar -xzf bash-5.2.tar.gz
         cd bash-5.2
 
-        # Configure for Android (NDK compatible)
         bash_cv_func_sigsetjmp=yes \
         ./configure \
           --host=armv7a-linux-androideabi \
           --without-bash-malloc \
-          --disable-nls \
-         
+          --disable-nls
 
-        # Build
         make -j4
 
-        # Prepare output
-        strip bash
-        chmod +x bash
+        file bash
         mkdir -p $GITHUB_WORKSPACE/out
-        cp bash $GITHUB_WORKSPACE/out/bash-armv7
+        cp bash $GITHUB_WORKSPACE/out/bash-armv7-dynamic
 
-    - name: Upload Bash ARMv7 Binary
+    - name: Upload Bash Binary
       uses: actions/upload-artifact@v4
       with:
-        name: bash-armv7
-        path: out/bash-armv7
+        name: bash-armv7-dynamic
+        path: out/bash-armv7-dynamic
