@@ -27,4 +27,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: bash-package
-        path: output/*.deb
+        path: packages/jj.deb
