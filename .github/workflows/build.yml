@@ -16,7 +16,7 @@ jobs:
         unzip android-ndk-r25c-linux.zip
         mv android-ndk-r25c ndk
 
-    - name: Setup NDK Environment
+    - name: Setup NDK Environment and Build Bash
       run: |
         export TOOLCHAIN=$GITHUB_WORKSPACE/ndk/toolchains/llvm/prebuilt/linux-x86_64
         export PATH=$TOOLCHAIN/bin:$PATH
@@ -26,14 +26,12 @@ jobs:
         tar -xzf bash-5.2.tar.gz
         cd bash-5.2
 
+        bash_cv_func_sigsetjmp=yes \
         ./configure \
-          --host=arm-linux-androideabi \
-          --without-bash-malloc \
-          bash_cv_func_sigsetjmp=yes
+          --host=armv7a-linux-androideabi \
+          --without-bash-malloc
 
         make -j4
-
-        file bash
         strip bash
         chmod +x bash
         mkdir -p $GITHUB_WORKSPACE/out
