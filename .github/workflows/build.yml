@@ -1,16 +1,16 @@
-name: Termux-style Bash for Android ARMv7
+name: Build Hello C for Android ARMv7
 
 on: [push, workflow_dispatch]
 
 jobs:
-  build-bash:
+  build-hello:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Code
+    - name: Checkout Repo
       uses: actions/checkout@v3
 
-    - name: Install Build Tools
+    - name: Install Dependencies
       run: sudo apt update && sudo apt install -y wget unzip file make
 
     - name: Download Android NDK r27c
@@ -19,39 +19,25 @@ jobs:
         unzip -q android-ndk-r27c-linux.zip
         mv android-ndk-r27c ndk
 
-    - name: Build Bash (Termux-style)
+    - name: Build Hello for ARMv7
       run: |
-        # Set up NDK and compiler
         export NDK=$GITHUB_WORKSPACE/ndk
         export TOOLCHAIN=$NDK/toolchains/llvm/prebuilt/linux-x86_64
         export PATH=$TOOLCHAIN/bin:$PATH
+
         export CC=armv7a-linux-androideabi24-clang
-        export CFLAGS="-march=armv7-a -mfpu=neon -fPIE -pie -fstack-protector-strong -Oz -std=gnu99"
-        export LDFLAGS="-pie -fPIE"
-        export CPPFLAGS="-DTERMUX"
+        export CFLAGS="-fPIE -pie"
+        export LDFLAGS="-fPIE -pie"
 
-        # Download bash
-        wget https://ftp.gnu.org/gnu/bash/bash-5.2.tar.gz
-        tar -xzf bash-5.2.tar.gz
-        cd bash-5.2
+        $CC $CFLAGS hello.c -o hello $LDFLAGS
 
-        bash_cv_func_sigsetjmp=yes \
-        ./configure \
-          --prefix=/data/data/com.termux/files/usr \
-          --host=armv7a-linux-androideabi \
-          --without-bash-malloc \
-          --disable-nls \
-          --enable-job-control \
-          bash_cv_func_sigsetjmp=yes
+        file hello
 
-        make -j4
-
-        # Final binary
         mkdir -p $GITHUB_WORKSPACE/out
-        cp bash $GITHUB_WORKSPACE/out/bash-termux-style
+        cp hello $GITHUB_WORKSPACE/out/hello-armv7
 
-    - name: Upload Bash Binary
+    - name: Upload Hello Binary
       uses: actions/upload-artifact@v4
       with:
-        name: bash-termux-style
-        path: out/bash-termux-style
+        name: hello-armv7
+        path: out/hello-armv7
