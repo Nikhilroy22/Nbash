@@ -1,4 +1,4 @@
-name: Build Bash Android ARMv7 PIE
+name: Build Bash for Android ARMv7
 
 on: [push, workflow_dispatch]
 
@@ -7,11 +7,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout
+    - name: Checkout Source
       uses: actions/checkout@v3
 
-    - name: Install dependencies
-      run: sudo apt update && sudo apt install -y wget unzip file
+    - name: Install Dependencies
+      run: sudo apt update && sudo apt install -y wget unzip file make
 
     - name: Download Android NDK r27c
       run: |
@@ -19,28 +19,34 @@ jobs:
         unzip -q android-ndk-r27c-linux.zip
         mv android-ndk-r27c ndk
 
-    - name: Build Bash for Android ARMv7
+    - name: Build Bash for Android ARMv7 (PIE, dynamic)
       run: |
-        # Setup env
+        # Set NDK environment
         export TOOLCHAIN=$GITHUB_WORKSPACE/ndk/toolchains/llvm/prebuilt/linux-x86_64
         export PATH=$TOOLCHAIN/bin:$PATH
-        export CC=armv7a-linux-androideabi24-clang  # Android 7.0 (API 24)
-        export CFLAGS="-fPIE -pie"
+        export CC=armv7a-linux-androideabi24-clang
+
+        # Compiler flags for Android PIE binary + fix for C23 issue
+        export CFLAGS="-fPIE -pie -std=gnu99"
+        export CPPFLAGS="-std=gnu99"
         export LDFLAGS="-fPIE -pie"
 
-        # Download bash
+        # Download Bash source
         wget https://ftp.gnu.org/gnu/bash/bash-5.2.tar.gz
         tar -xzf bash-5.2.tar.gz
         cd bash-5.2
 
+        # Configure with Android cross-compiler
         bash_cv_func_sigsetjmp=yes \
         ./configure \
           --host=armv7a-linux-androideabi \
-          --without-bash-malloc \
-          --disable-nls
+          --disable-nls \
+          --without-bash-malloc
 
+        # Build
         make -j4
 
+        # Check and copy output
         file bash
         mkdir -p $GITHUB_WORKSPACE/out
         cp bash $GITHUB_WORKSPACE/out/bash-armv7-dynamic
