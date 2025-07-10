@@ -1,44 +1,55 @@
-name: Build Bash for Android ARMv7 (NDK)
+name: Build Bash for Android ARMv7
 
 on: [push, workflow_dispatch]
 
 jobs:
-  build:
+  build-bash-armv7:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Repo
+    - name: Checkout Code
       uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: sudo apt update && sudo apt install -y wget unzip file
 
     - name: Download Android NDK
       run: |
         wget https://dl.google.com/android/repository/android-ndk-r25c-linux.zip
-        unzip android-ndk-r25c-linux.zip
+        unzip -q android-ndk-r25c-linux.zip
         mv android-ndk-r25c ndk
 
-    - name: Setup NDK Environment and Build Bash
+    - name: Build Bash for Android
       run: |
+        # Set up NDK toolchain
         export TOOLCHAIN=$GITHUB_WORKSPACE/ndk/toolchains/llvm/prebuilt/linux-x86_64
         export PATH=$TOOLCHAIN/bin:$PATH
         export CC=armv7a-linux-androideabi21-clang
 
+        # Download Bash source
         wget https://ftp.gnu.org/gnu/bash/bash-5.2.tar.gz
         tar -xzf bash-5.2.tar.gz
         cd bash-5.2
 
+        # Configure for Android (NDK compatible)
         bash_cv_func_sigsetjmp=yes \
         ./configure \
           --host=armv7a-linux-androideabi \
-          --without-bash-malloc
+          --without-bash-malloc \
+          --disable-nls \
+          --enable-static-link
 
+        # Build
         make -j4
+
+        # Prepare output
         strip bash
         chmod +x bash
         mkdir -p $GITHUB_WORKSPACE/out
-        cp bash $GITHUB_WORKSPACE/out/bash-android-armv7
+        cp bash $GITHUB_WORKSPACE/out/bash-armv7
 
-    - name: Upload Binary
+    - name: Upload Bash ARMv7 Binary
       uses: actions/upload-artifact@v4
       with:
-        name: bash-android-armv7
-        path: out/bash-android-armv7
+        name: bash-armv7
+        path: out/bash-armv7
