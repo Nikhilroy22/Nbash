@@ -1,4 +1,4 @@
-name: Build Bash for Android ARMv7
+name: Termux-style Bash for Android ARMv7
 
 on: [push, workflow_dispatch]
 
@@ -7,10 +7,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Source
+    - name: Checkout Code
       uses: actions/checkout@v3
 
-    - name: Install Dependencies
+    - name: Install Build Tools
       run: sudo apt update && sudo apt install -y wget unzip file make
 
     - name: Download Android NDK r27c
@@ -19,40 +19,39 @@ jobs:
         unzip -q android-ndk-r27c-linux.zip
         mv android-ndk-r27c ndk
 
-    - name: Build Bash for Android ARMv7 (PIE, dynamic)
+    - name: Build Bash (Termux-style)
       run: |
-        # Set NDK environment
-        export TOOLCHAIN=$GITHUB_WORKSPACE/ndk/toolchains/llvm/prebuilt/linux-x86_64
+        # Set up NDK and compiler
+        export NDK=$GITHUB_WORKSPACE/ndk
+        export TOOLCHAIN=$NDK/toolchains/llvm/prebuilt/linux-x86_64
         export PATH=$TOOLCHAIN/bin:$PATH
         export CC=armv7a-linux-androideabi24-clang
+        export CFLAGS="-march=armv7-a -mfpu=neon -fPIE -pie -fstack-protector-strong -Oz -std=gnu99"
+        export LDFLAGS="-pie -fPIE"
+        export CPPFLAGS="-DTERMUX"
 
-        # Compiler flags for Android PIE binary + fix for C23 issue
-        export CFLAGS="-fPIE -pie -std=gnu99"
-        export CPPFLAGS="-std=gnu99"
-        export LDFLAGS="-fPIE -pie"
-
-        # Download Bash source
+        # Download bash
         wget https://ftp.gnu.org/gnu/bash/bash-5.2.tar.gz
         tar -xzf bash-5.2.tar.gz
         cd bash-5.2
 
-        # Configure with Android cross-compiler
         bash_cv_func_sigsetjmp=yes \
         ./configure \
+          --prefix=/data/data/com.termux/files/usr \
           --host=armv7a-linux-androideabi \
+          --without-bash-malloc \
           --disable-nls \
-          --without-bash-malloc
+          --enable-job-control \
+          bash_cv_func_sigsetjmp=yes
 
-        # Build
         make -j4
 
-        # Check and copy output
-        file bash
+        # Final binary
         mkdir -p $GITHUB_WORKSPACE/out
-        cp bash $GITHUB_WORKSPACE/out/bash-armv7-dynamic
+        cp bash $GITHUB_WORKSPACE/out/bash-termux-style
 
     - name: Upload Bash Binary
       uses: actions/upload-artifact@v4
       with:
-        name: bash-armv7-dynamic
-        path: out/bash-armv7-dynamic
+        name: bash-termux-style
+        path: out/bash-termux-style
