@@ -1,0 +1,10 @@
+./configure --host=arm-linux-androideabi CC=clang --prefix=$HOME/kk
+make -j$(nproc)
+make install
+file $HOME/kk/bin/bash
+
+
+
+wget https://ftp.gnu.org/gnu/bash/bash-5.2.37.tar.gz
+tar -xvzf bash-5.2.37.tar.gz
+cd bash-5.2.37
