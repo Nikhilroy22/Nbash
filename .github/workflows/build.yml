@@ -1,30 +1,59 @@
-name: Build Bash Package
+name: Build Bash for Android ARMv7
 
-on:
-  push:
-    branches: [ main ]
-  workflow_dispatch:
+on: [push, workflow_dispatch]
 
 jobs:
-  build:
+  build-bash-armv7:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout
+    - name: Checkout Code
       uses: actions/checkout@v3
 
     - name: Install dependencies
       run: |
         sudo apt update
-        sudo apt install -y build-essential wget dpkg-dev
+        sudo apt install -y \
+          gcc-arm-linux-gnueabihf \
+          make \
+          autoconf \
+          bison \
+          wget \
+          file
 
-    - name: Build bash package
+    - name: Download and Extract Bash Source
       run: |
-        chmod +x scripts/build-package.sh
-        ./scripts/build-package.sh bash
+        wget https://ftp.gnu.org/gnu/bash/bash-5.2.tar.gz
+        tar -xzf bash-5.2.tar.gz
+        mv bash-5.2 bash-src
 
-    - name: Upload .deb artifact
+    - name: Configure for ARMv7 (Android-Compatible)
+      working-directory: bash-src
+      run: |
+        CC=arm-linux-gnueabihf-gcc \
+        ./configure \
+          --host=arm-linux-gnueabihf \
+          --build=x86_64-linux-gnu \
+          --prefix=/data/data/com.npuja.nikhil/files \
+          --without-bash-malloc \
+          --enable-static-link \
+          bash_cv_func_sigsetjmp=yes
+
+    - name: Build Bash
+      working-directory: bash-src
+      run: make -j4
+
+    - name: Show Binary Info
+      run: file bash-src/bash
+
+    - name: Rename Output for Android Asset
+      run: |
+        mkdir -p out/
+        cp bash-src/bash out/bash-armv7
+        chmod +x out/bash-armv7
+
+    - name: Upload Bash Binary
       uses: actions/upload-artifact@v4
       with:
-        name: bash-package
-        path: output/*.deb
+        name: bash-armv7
+        path: out/bash-armv7
