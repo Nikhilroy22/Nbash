@@ -26,8 +26,8 @@ jobs:
           mv bash-5.3 bash
       - name: Patch getwd to getcwd
         run: |
-           cd bash
-            sed -i 's/\bgetwd\b/getcwd/g' lib/intl/*.c lib/sh/*.c
+          cd bash
+           find . -type f -name '*.c' -o -name '*.h' | xargs sed -i 's/\bgetwd\s*(\([^,()]*\))/getcwd(\1, 4096)/g'
     
       - name: Environment সেটআপ ও Bash Build করুন
         run: |
@@ -44,11 +44,12 @@ jobs:
           cd bash
           CC=$CC CXX=$CXX \
           ./configure \
-              --host=arm-linux-androideabi \
-              --prefix=$PWD/build-armv7 \
-              --without-bash-malloc \
-              bash_cv_func_sigsetjmp=yes \
-              bash_cv_type_rlimit=rlim_t
+            --host=arm-linux-androideabi \
+             --prefix=$PWD/build-armv7 \
+            --without-bash-malloc \
+           bash_cv_func_sigsetjmp=yes \
+           bash_cv_type_rlimit=rlim_t \
+            ac_cv_func_getwd=no
 
           make -j$(nproc)
           make install
