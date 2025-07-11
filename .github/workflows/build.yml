@@ -1,4 +1,4 @@
-name: Build ARMv7 Toolchain
+name: Build Termux Package
 
 on:
   push:
@@ -6,46 +6,45 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-toolchain:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-    - name: কোড ক্লোন করুন
-      uses: actions/checkout@v4
+    - name: কোড ক্লোন করুন (termux-packages)
+      run: |
+        git clone https://github.com/termux/termux-packages
+        cd termux-packages
+        git submodule update --init --recursive
 
-    - name: প্রয়োজনীয় প্যাকেজ ইনস্টল
+    - name: প্রয়োজনীয় প্যাকেজ ইনস্টল করুন
       run: |
         sudo apt-get update
         sudo apt-get install -y \
-          git help2man gperf bison flex texinfo \
-          libtool-bin automake libncurses5-dev python3-dev \
-          gawk libexpat1-dev unzip build-essential wget
+          build-essential clang curl git \
+          gnupg gperf cmake ninja-build \
+          libncurses5-dev libtool \
+          patch unzip zip \
+          automake bison python3 \
+          libxml2-utils xsltproc \
+          ruby
 
-    - name: Crosstool-NG ডাউনলোড ও ইনস্টল
+    - name: Docker-এ Termux build environment রান করুন
       run: |
-        git clone https://github.com/crosstool-ng/crosstool-ng
-        cd crosstool-ng
-        ./bootstrap
-        ./configure --enable-local
-        make
-        sudo make install
-        ct-ng version
+        cd termux-packages
+        ./scripts/setup-termux.sh
 
-    - name: Toolchain config তৈরি করুন
+    - name: নির্দিষ্ট প্যাকেজ build করুন (curl উদাহরণ)
       run: |
-        mkdir -p toolchain-build
-        cd toolchain-build
-        ct-ng armv7a-unknown-linux-musleabi
-        sed -i 's/^CT_PREFIX_DIR=.*/CT_PREFIX_DIR="${HOME}\/x-tools"/' .config
-        ct-ng build
+        cd termux-packages
+        ./build-package.sh -a aarch64 -I curl
 
-    - name: Toolchain আর্কাইভ করুন
+    - name: Artifact আর্কাইভ করুন
       run: |
-        cd ~/x-tools
-        tar -czvf $GITHUB_WORKSPACE/armv7-toolchain.tar.gz *
+        mkdir -p output
+        cp -r termux-packages/output/* output/
 
     - name: Artifact আপলোড করুন
       uses: actions/upload-artifact@v4
       with:
-        name: armv7-toolchain
-        path: armv7-toolchain.tar.gz
+        name: termux-debs
+        path: output/
