@@ -40,7 +40,7 @@ jobs:
     - name: Fix config.sub for Android target
       run: |
         cd jdk17u
-        wget https://raw.githubusercontent.com/termux/termux-packages/master/scripts/build/config.sub \
+        wget https://git.savannah.gnu.org/cgit/config.git/plain/config.sub \
           -O ./make/autoconf/build-aux/config.sub
 
     - name: Configure OpenJDK for ARMv7
