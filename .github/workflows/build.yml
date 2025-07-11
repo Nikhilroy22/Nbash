@@ -24,7 +24,11 @@ jobs:
           wget https://mirrors.kernel.org/gnu/bash/bash-5.3.tar.gz
           tar -xf bash-5.3.tar.gz
           mv bash-5.3 bash
-
+      - name: Patch getwd to getcwd
+        run: |
+           cd bash
+            sed -i 's/\bgetwd\b/getcwd/g' lib/intl/*.c lib/sh/*.c
+    
       - name: Environment সেটআপ ও Bash Build করুন
         run: |
           export NDK=$HOME/android-ndk
