@@ -1,4 +1,4 @@
-name: Build Bash 5.3 for Android ARMv7
+name: Build Bash 5.3 for Android ARMv7 using Clang
 
 on:
   push:
@@ -8,59 +8,74 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    name: Build Bash 5.3 ARMv7 with Dependencies
 
     steps:
       - name: কোড ক্লোন করুন
         uses: actions/checkout@v4
 
-      - name: প্রয়োজনীয় টুলস ইনস্টল করুন
+      - name: Android NDK ডাউনলোড করুন
         run: |
-          sudo apt update
-          sudo apt install -y wget build-essential autoconf \
-            automake libtool texinfo bison flex \
-            gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf \
-            qemu-user file
+          wget https://dl.google.com/android/repository/android-ndk-r26b-linux.zip
+          unzip android-ndk-r26b-linux.zip
+          mv android-ndk-r26b $HOME/android-ndk
 
-      - name: Bash 5.3 সোর্স ডাউনলোড ও এক্সট্রাক্ট করুন
+      - name: Environment সেটআপ করুন
+        run: |
+          echo "export NDK=$HOME/android-ndk" >> $GITHUB_ENV
+          echo "export API=21" >> $GITHUB_ENV
+          echo "export TARGET=armv7a-linux-androideabi" >> $GITHUB_ENV
+          echo "export TOOLCHAIN=$NDK/toolchains/llvm/prebuilt/linux-x86_64" >> $GITHUB_ENV
+          echo "export AR=$TOOLCHAIN/bin/llvm-ar" >> $GITHUB_ENV
+          echo "export AS=$TOOLCHAIN/bin/llvm-as" >> $GITHUB_ENV
+          echo "export CC=$TOOLCHAIN/bin/armv7a-linux-androideabi$API-clang" >> $GITHUB_ENV
+          echo "export CXX=$TOOLCHAIN/bin/armv7a-linux-androideabi$API-clang++" >> $GITHUB_ENV
+          echo "export LD=$TOOLCHAIN/bin/ld" >> $GITHUB_ENV
+          echo "export STRIP=$TOOLCHAIN/bin/llvm-strip" >> $GITHUB_ENV
+          echo "export PATH=$TOOLCHAIN/bin:$PATH" >> $GITHUB_ENV
+
+      - name: Bash 5.3 সোর্স ডাউনলোড
         run: |
           wget https://mirrors.kernel.org/gnu/bash/bash-5.3.tar.gz
           tar -xf bash-5.3.tar.gz
           mv bash-5.3 bash
 
-      - name: Bash Configure ও Build করুন
+      - name: Configure ও Build করুন (Clang + NDK)
         run: |
+          source $GITHUB_ENV
           cd bash
-          ./configure --host=arm-linux-gnueabihf \
-                      --prefix=$PWD/build-armv7 \
-                      --without-bash-malloc
+          ./configure \
+            --host=arm-linux-androideabi \
+            --prefix=$PWD/build-armv7 \
+            --without-bash-malloc \
+            bash_cv_func_sigsetjmp=yes \
+            ac_cv_func_setvbuf_reversed=no \
+            bash_cv_must_reinstall_sighandlers=no \
+            bash_cv_getcwd_malloc=yes \
+            bash_cv_job_control_missing=present \
+            bash_cv_sys_named_pipes=present \
+            bash_cv_unusable_rtsigs=no \
+            bash_cv_func_strcoll_broken=no \
+            bash_cv_have_mbstate_t=yes \
+            bash_cv_ulimit_maxfds=yes \
+            bash_cv_printf_a_format=yes \
+            bash_cv_pgrp_pipe=no \
+            bash_cv_type_rlimit=yes \
+            bash_cv_getenv_redef=no \
+            bash_cv_func_sigsetjmp=present
+
           make -j$(nproc)
           make install
 
-      - name: ডিপেন্ডেন্সি লাইব্রেরিগুলো সংগ্রহ করুন
-        run: |
-          mkdir -p deps
-          cd bash/build-armv7/bin
-
-          # detect runtime .so dependencies using `readelf`
-          arm-linux-gnueabihf-readelf -d bash | grep NEEDED || true
-
-          # copy common dependencies manually
-          cp /usr/arm-linux-gnueabihf/lib/*tinfo*.so* ../../../../deps/ || true
-          cp /usr/arm-linux-gnueabihf/lib/*readline*.so* ../../../../deps/ || true
-          cp /usr/arm-linux-gnueabihf/lib/*ncurses*.so* ../../../../deps/ || true
-
       - name: আর্কাইভ তৈরি করুন
         run: |
-          mkdir -p output/bin output/lib
-          cp bash/build-armv7/bin/bash output/bin/
-          cp deps/*.so* output/lib/ || true
-
-          cd output
-          tar -czvf $GITHUB_WORKSPACE/bash-5.3-armv7-with-deps.tar.gz .
+          cd bash/build-armv7
+          mkdir -p bundle/bin
+          cp bin/bash bundle/bin/
+          cd bundle
+          tar -czvf $GITHUB_WORKSPACE/bash-5.3-armv7-clang.tar.gz .
 
       - name: Artifact আপলোড করুন
         uses: actions/upload-artifact@v4
         with:
-          name: bash-5.3-armv7-with-deps
-          path: bash-5.3-armv7-with-deps.tar.gz
+          name: bash-5.3-armv7-clang
+          path: bash-5.3-armv7-clang.tar.gz
