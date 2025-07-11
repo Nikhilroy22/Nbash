@@ -1,56 +1,41 @@
-name: Build Bash for ARMv7 (Android/Termux)
+name: Build OpenJDK 17 for ARMv7 (Android)
 
 on:
+  workflow_dispatch:
   push:
     branches: [ main ]
-  workflow_dispatch:
 
 jobs:
-  build-bash:
+  build-openjdk:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📁 Checkout source
+      - name: 📁 Checkout termux-packages
         uses: actions/checkout@v3
+        with:
+          repository: termux/termux-packages
+          path: termux-packages
 
       - name: 🧰 Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y curl unzip build-essential autoconf automake libtool texinfo
+          sudo apt install -y git curl tar zip unzip \
+            build-essential python3 texinfo \
+            automake autoconf libtool libtool-bin \
+            cmake pkg-config
 
-      - name: 📦 Download Android NDK
+      - name: 🐳 Setup Termux Docker builder
         run: |
-          curl -O https://dl.google.com/android/repository/android-ndk-r25c-linux.zip
-          unzip android-ndk-r25c-linux.zip
-          mv android-ndk-r25c $HOME/ndk
+          cd termux-packages
+          ./scripts/setup-termux.sh
 
-      - name: 🔧 Set up NDK Toolchain (LLVM based)
+      - name: 🏗️ Build OpenJDK 17 for ARM
         run: |
-          echo "TOOLCHAIN=$HOME/ndk/toolchains/llvm/prebuilt/linux-x86_64" >> $GITHUB_ENV
+          cd termux-packages
+          ./scripts/run-docker.sh ./build-package.sh openjdk-17
 
-      - name: 🐚 Clone Bash source
-        run: |
-          git clone https://github.com/bminor/bash.git
-          cd bash
-          git checkout bash-5.1
-
-      - name: 🛠️ Configure and build Bash for ARMv7
-        run: |
-          export TOOLCHAIN=$HOME/ndk/toolchains/llvm/prebuilt/linux-x86_64
-          export PATH=$TOOLCHAIN/bin:$PATH
-
-          export CC=armv7a-linux-androideabi21-clang
-          export CXX=armv7a-linux-androideabi21-clang++
-          export AR=llvm-ar
-          export RANLIB=llvm-ranlib
-
-          cd bash
-          ./configure --host=arm-linux-androideabi --prefix=$HOME/bash-arm
-          make -j$(nproc)
-          make install
-
-      - name: 📤 Upload built Bash binary
+      - name: 📤 Upload built .deb package
         uses: actions/upload-artifact@v4
         with:
-          name: bash-armv7
-          path: $HOME/bash-arm
+          name: openjdk-17-armv7
+          path: termux-packages/output/*.deb
