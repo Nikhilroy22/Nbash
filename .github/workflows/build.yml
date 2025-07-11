@@ -52,7 +52,7 @@ jobs:
           --with-boot-jdk=/usr/lib/jvm/java-11-openjdk-amd64 \
           --with-jvm-variants=zero \
           --with-debug-level=release \
-          --with-target-bits=32 \
+          
           --disable-warnings-as-errors \
           --enable-headless-only
 
