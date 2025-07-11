@@ -1,70 +1,49 @@
-name: Build Bash 5.3 for Android ARMv7 using Clang
+name: Build ARMv7 Toolchain
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
 
 jobs:
-  build:
+  build-toolchain:
     runs-on: ubuntu-latest
 
     steps:
-      - name: কোড ক্লোন করুন
-        uses: actions/checkout@v4
+    - name: কোড ক্লোন করুন
+      uses: actions/checkout@v4
 
-      - name: Android NDK ডাউনলোড করুন
-        run: |
-          wget https://dl.google.com/android/repository/android-ndk-r25c-linux.zip
-          unzip -q android-ndk-r25c-linux.zip
-          mv android-ndk-r25c ndk
+    - name: প্রয়োজনীয় প্যাকেজ ইনস্টল
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          git help2man gperf bison flex texinfo \
+          libtool-bin automake libncurses5-dev python3-dev \
+          gawk libexpat1-dev unzip build-essential wget
 
-      - name: Bash 5.3 সোর্স ডাউনলোড করুন
-        run: |
-          wget https://mirrors.kernel.org/gnu/bash/bash-5.3.tar.gz
-          tar -xf bash-5.3.tar.gz
-          mv bash-5.3 bash
-      - name: Patch getwd to getcwd
-        run: |
-          cd bash
-          sudo apt-get update && sudo apt-get install -y moreutils
-           find . -type f \( -name '*.c' -o -name '*.h' \) -exec sed -i 's/\bgetwd\s*(\([^,()]*\))/getcwd(\1, 4096)/g' {} +
-    
-      - name: Environment সেটআপ ও Bash Build করুন
-        run: |
-          export NDK=$GITHUB_WORKSPACE/ndk
-          export TOOLCHAIN=$NDK/toolchains/llvm/prebuilt/linux-x86_64
+    - name: Crosstool-NG ডাউনলোড ও ইনস্টল
+      run: |
+        git clone https://github.com/crosstool-ng/crosstool-ng
+        cd crosstool-ng
+        ./bootstrap
+        ./configure --enable-local
+        make
+        sudo make install
+        ct-ng version
 
-            # Define compiler
-             export CC=$TOOLCHAIN/bin/armv7a-linux-androideabi21-clang
-             export CXX=$TOOLCHAIN/bin/armv7a-linux-androideabi21-clang++
-          export PATH=$TOOLCHAIN/bin:$PATH
+    - name: Toolchain config তৈরি করুন
+      run: |
+        mkdir -p toolchain-build
+        cd toolchain-build
+        ct-ng armv7a-unknown-linux-musleabi
+        sed -i 's/^CT_PREFIX_DIR=.*/CT_PREFIX_DIR="${HOME}\/x-tools"/' .config
+        ct-ng build
 
-          echo "✅ CC is: $CC"
+    - name: Toolchain আর্কাইভ করুন
+      run: |
+        cd ~/x-tools
+        tar -czvf $GITHUB_WORKSPACE/armv7-toolchain.tar.gz *
 
-          cd bash
-          CC=$CC CXX=$CXX \
-          ./configure \
-            --host=arm-linux-androideabi \
-             --prefix=$PWD/build-armv7 \
-            --without-bash-malloc \
-           bash_cv_func_sigsetjmp=yes \
-           bash_cv_type_rlimit=rlim_t \
-            ac_cv_func_getwd=no
-
-          make -j$(nproc)
-          make install
-
-      - name: আর্কাইভ তৈরি করুন
-        run: |
-          cd bash/build-armv7
-          mkdir -p bundle/bin
-          cp bin/bash bundle/bin/
-          cd bundle
-          tar -czvf $GITHUB_WORKSPACE/bash-5.3-armv7-clang.tar.gz .
-
-      - name: Artifact আপলোড করুন
-        uses: actions/upload-artifact@v4
-        with:
-          name: bash-5.3-armv7-clang
-          path: bash-5.3-armv7-clang.tar.gz
+    - name: Artifact আপলোড করুন
+      uses: actions/upload-artifact@v4
+      with:
+        name: armv7-toolchain
+        path: armv7-toolchain.tar.gz
