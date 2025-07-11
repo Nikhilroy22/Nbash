@@ -1,17 +1,56 @@
-name: Echo Workflow
+name: Build OpenJDK Zero VM for Android ARMv7
 
-on:
-  push:
-    branches:
-      - main
+on: [push, workflow_dispatch]
 
 jobs:
-  echo-job:
+  build-jvm:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+    - name: Checkout
+      uses: actions/checkout@v3
 
-      - name: Echo Hello Message
-        run: echo "👋 হ্যালো, এটা আমার প্রথম GitHub Actions!"
+    - name: Install Build Dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y \
+          git zip unzip curl file make autoconf \
+          libx11-dev libxext-dev libxrender-dev libxtst-dev libxt-dev \
+          libcups2-dev libasound2-dev libfreetype6-dev libasound2-dev \
+          libxrandr-dev libc6-dev-i386
+
+    - name: Download Android NDK
+      run: |
+        wget https://dl.google.com/android/repository/android-ndk-r25c-linux.zip
+        unzip -q android-ndk-r25c-linux.zip
+        mv android-ndk-r25c ndk
+
+    - name: Clone OpenJDK
+      run: |
+        git clone https://github.com/openjdk/jdk17u.git
+        cd jdk17u
+        bash configure \
+          --openjdk-target=armv7a-linux-android \
+          --with-toolchain-type=clang \
+          --with-boot-jdk=/usr/lib/jvm/java-11-openjdk-amd64 \
+          --with-jvm-variants=zero \
+          --with-debug-level=release \
+          --with-target-bits=32 \
+          --disable-warnings-as-errors \
+          --enable-headless-only
+
+    - name: Set Environment
+      run: |
+        echo "PATH=$GITHUB_WORKSPACE/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH" >> $GITHUB_ENV
+        echo "CC=armv7a-linux-androideabi24-clang" >> $GITHUB_ENV
+
+    - name: Build JVM
+      run: |
+        cd jdk17u
+        make images
+
+    - name: Upload JVM Output
+      uses: actions/upload-artifact@v4
+      with:
+        name: openjdk-android-armv7
+        path: jdk17u/build/linux-arm-normal-zero-release/images
