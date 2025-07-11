@@ -1,23 +1,23 @@
-name: Build OpenJDK 17 (Zero) for Android ARMv7
+name: Build OpenJDK 17 Zero for Android ARMv7
 
 on: [push, workflow_dispatch]
 
 jobs:
-  build-jvm:
+  build-openjdk:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Repo
+    - name: Checkout Repository
       uses: actions/checkout@v3
 
-    - name: Install Dependencies
+    - name: Install Required Packages
       run: |
         sudo apt update
         sudo apt install -y \
           build-essential autoconf zip unzip curl \
           file libx11-dev libxext-dev libxrender-dev \
           libxtst-dev libxt-dev libcups2-dev libasound2-dev \
-          libfreetype6-dev libxrandr-dev
+          libfreetype6-dev libxrandr-dev openjdk-11-jdk
 
     - name: Download Android NDK r25c
       run: |
@@ -31,13 +31,11 @@ jobs:
         echo "TOOLCHAIN=$GITHUB_WORKSPACE/ndk/toolchains/llvm/prebuilt/linux-x86_64" >> $GITHUB_ENV
         echo "$GITHUB_WORKSPACE/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin" >> $GITHUB_PATH
 
-    - name: Clone OpenJDK Source
+    - name: Clone OpenJDK 17 Source
       run: |
         git clone https://github.com/openjdk/jdk17u.git
-        cd jdk17u
-        bash configure --version || true
 
-    - name: Fix config.sub for Android target
+    - name: Fix config.sub for Android
       run: |
         cd jdk17u
         wget https://git.savannah.gnu.org/cgit/config.git/plain/config.sub \
@@ -52,16 +50,15 @@ jobs:
           --with-boot-jdk=/usr/lib/jvm/java-11-openjdk-amd64 \
           --with-jvm-variants=zero \
           --with-debug-level=release \
-          
           --disable-warnings-as-errors \
           --enable-headless-only
 
-    - name: Build JVM
+    - name: Build OpenJDK
       run: |
         cd jdk17u
         make images
 
-    - name: Upload JVM Binary
+    - name: Upload OpenJDK ARMv7 Build
       uses: actions/upload-artifact@v4
       with:
         name: openjdk-17-zero-android-armv7
