@@ -1,4 +1,4 @@
-name: Build Bash for ARMv7 (Termux/Android)
+name: Build Bash for ARMv7 (Android/Termux)
 
 on:
   push:
@@ -24,12 +24,9 @@ jobs:
           unzip android-ndk-r25c-linux.zip
           mv android-ndk-r25c $HOME/ndk
 
-      - name: 🔧 Create standalone toolchain for ARMv7
+      - name: 🔧 Set up NDK Toolchain (LLVM based)
         run: |
-          python3 $HOME/ndk/build/tools/make_standalone_toolchain.py \
-            --arch arm \
-            --api 21 \
-            --install-dir $HOME/arm-toolchain
+          echo "TOOLCHAIN=$HOME/ndk/toolchains/llvm/prebuilt/linux-x86_64" >> $GITHUB_ENV
 
       - name: 🐚 Clone Bash source
         run: |
@@ -39,11 +36,14 @@ jobs:
 
       - name: 🛠️ Configure and build Bash for ARMv7
         run: |
-          export PATH=$HOME/arm-toolchain/bin:$PATH
-          export CC=arm-linux-androideabi-clang
-          export CXX=arm-linux-androideabi-clang++
-          export AR=arm-linux-androideabi-ar
-          export RANLIB=arm-linux-androideabi-ranlib
+          export TOOLCHAIN=$HOME/ndk/toolchains/llvm/prebuilt/linux-x86_64
+          export PATH=$TOOLCHAIN/bin:$PATH
+
+          export CC=armv7a-linux-androideabi21-clang
+          export CXX=armv7a-linux-androideabi21-clang++
+          export AR=llvm-ar
+          export RANLIB=llvm-ranlib
+
           cd bash
           ./configure --host=arm-linux-androideabi --prefix=$HOME/bash-arm
           make -j$(nproc)
