@@ -34,8 +34,11 @@ jobs:
     - name: Setup NDK Environment
       run: |
         echo "NDK=$GITHUB_WORKSPACE/ndk" >> $GITHUB_ENV
-        echo "TOOLCHAIN=$NDK/toolchains/llvm/prebuilt/linux-x86_64" >> $GITHUB_ENV
-        echo "$TOOLCHAIN/bin" >> $GITHUB_PATH
+        echo "TOOLCHAIN=$GITHUB_WORKSPACE/ndk/toolchains/llvm/prebuilt/linux-x86_64" >> $GITHUB_ENV
+        echo "$GITHUB_WORKSPACE/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin" >> $GITHUB_PATH
+        # Debug: Confirm clang is available
+        ls -l $GITHUB_WORKSPACE/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/clang || true
+        ls -l $GITHUB_WORKSPACE/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/arm-linux-androideabi21-clang || true
 
     - name: Clone OpenJDK 17 Source
       run: |
@@ -48,10 +51,13 @@ jobs:
           -O ./make/autoconf/build-aux/config.sub
 
     - name: Configure OpenJDK for Android ARMv7
-      env:
-        TOOLCHAIN: ${{ env.TOOLCHAIN }}
       run: |
         cd jdk17u
+        echo ">>> Checking clang location and version"
+        which clang || true
+        clang --version || true
+        echo ">>> PATH = $PATH"
+        echo ">>> TOOLCHAIN = $TOOLCHAIN"
         bash configure \
           --openjdk-target=arm-linux-androideabi \
           --with-toolchain-type=clang \
