@@ -1,16 +1,16 @@
-name: Build OpenJDK 17 Zero for Android ARMv7
+name: OpenJDK 17 Zero Android ARMv7 এর জন্য বিল্ড
 
-on: [push, workflow_dispatch]
+on: [push, workflow_dispatch]  # যখন কোড পুশ হবে বা ম্যানুয়ালি রান করানো হবে তখন এই ওয়ার্কফ্লো চলবে
 
 jobs:
   build-openjdk:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest  # ওয়ার্কফ্লো রান হবে সর্বশেষ উবুন্টু লিনাক্স পরিবেশে
 
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v3
+    - name: রিপোজিটরি ক্লোন করুন
+      uses: actions/checkout@v3  # কোড রিপোজিটরি থেকে নেয়া হবে
 
-    - name: Install Required Packages
+    - name: প্রয়োজনীয় প্যাকেজ ইন্সটল করুন
       run: |
         sudo apt update
         sudo apt install -y \
@@ -19,35 +19,35 @@ jobs:
           libxtst-dev libxt-dev libcups2-dev libasound2-dev \
           libfreetype6-dev libxrandr-dev
 
-    - name: Download Android NDK r25c
+    - name: Android NDK r25c ডাউনলোড ও আনজিপ করুন
       run: |
         wget https://dl.google.com/android/repository/android-ndk-r25c-linux.zip
         unzip -q android-ndk-r25c-linux.zip
         mv android-ndk-r25c ndk
 
-    - name: Download JDK 17 (Boot JDK)
-  run: |
-    wget https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.10%2B7/OpenJDK17U-jdk_x64_linux_hotspot_17.0.10_7.tar.gz
-    tar -xf OpenJDK17U-jdk_x64_linux_hotspot_17.0.10_7.tar.gz
-    mv jdk-17.0.10+7 bootjdk
+    - name: JDK 17 (Boot JDK) ডাউনলোড ও আনপ্যাক করুন
+      run: |
+        wget https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.10%2B7/OpenJDK17U-jdk_x64_linux_hotspot_17.0.10_7.tar.gz
+        tar -xf OpenJDK17U-jdk_x64_linux_hotspot_17.0.10_7.tar.gz
+        mv jdk-17.0.10+7 bootjdk
 
-    - name: Setup NDK Environment
+    - name: NDK পরিবেশ সেটআপ করুন
       run: |
         echo "NDK=$GITHUB_WORKSPACE/ndk" >> $GITHUB_ENV
         echo "TOOLCHAIN=$NDK/toolchains/llvm/prebuilt/linux-x86_64" >> $GITHUB_ENV
         echo "$TOOLCHAIN/bin" >> $GITHUB_PATH
 
-    - name: Clone OpenJDK 17 Source
+    - name: OpenJDK 17 এর সোর্স কোড ক্লোন করুন
       run: |
         git clone https://github.com/openjdk/jdk17u.git
 
-    - name: Fix config.sub for Android
+    - name: Android এর জন্য config.sub ফাইল আপডেট করুন
       run: |
         cd jdk17u
         wget https://git.savannah.gnu.org/cgit/config.git/plain/config.sub \
           -O ./make/autoconf/build-aux/config.sub
 
-    - name: Configure OpenJDK for Android ARMv7
+    - name: OpenJDK কনফিগার করুন Android ARMv7 এর জন্য
       run: |
         cd jdk17u
         bash configure \
@@ -59,12 +59,12 @@ jobs:
           --disable-warnings-as-errors \
           --enable-headless-only
 
-    - name: Build OpenJDK
+    - name: OpenJDK বিল্ড করুন
       run: |
         cd jdk17u
         make images
 
-    - name: Upload OpenJDK ARMv7 Build
+    - name: বিল্ট OpenJDK ARMv7 ফাইল আপলোড করুন
       uses: actions/upload-artifact@v4
       with:
         name: openjdk-17-zero-android-armv7
