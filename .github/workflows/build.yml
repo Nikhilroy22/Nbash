@@ -19,7 +19,8 @@ jobs:
           sudo apt update
           sudo apt install -y wget build-essential autoconf \
             automake libtool texinfo bison flex \
-            gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf qemu-user
+            gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf \
+            qemu-user file
 
       - name: Bash 5.3 সোর্স ডাউনলোড ও এক্সট্রাক্ট করুন
         run: |
@@ -27,35 +28,36 @@ jobs:
           tar -xf bash-5.3.tar.gz
           mv bash-5.3 bash
 
-      - name: Configure ও Build করুন
+      - name: Bash Configure ও Build করুন
         run: |
           cd bash
           ./configure --host=arm-linux-gnueabihf \
                       --prefix=$PWD/build-armv7 \
                       --without-bash-malloc
-
           make -j$(nproc)
           make install
 
-      - name: আর্কাইভ তৈরি করুন
+      - name: ডিপেন্ডেন্সি লাইব্রেরিগুলো সংগ্রহ করুন
         run: |
-          cd bash/build-armv7/bin
           mkdir -p deps
+          cd bash/build-armv7/bin
 
-          # আপনি চাইলে এখানে auto `.so` detector (like ldd) যোগ করতে পারেন
-          cp /usr/arm-linux-gnueabihf/lib/*tinfo*.so* deps/ || true
-          cp /usr/arm-linux-gnueabihf/lib/*readline*.so* deps/ || true
-          cp /usr/arm-linux-gnueabihf/lib/*ncurses*.so* deps/ || true
+          # detect runtime .so dependencies using `readelf`
+          arm-linux-gnueabihf-readelf -d bash | grep NEEDED || true
+
+          # copy common dependencies manually
+          cp /usr/arm-linux-gnueabihf/lib/*tinfo*.so* ../../../../deps/ || true
+          cp /usr/arm-linux-gnueabihf/lib/*readline*.so* ../../../../deps/ || true
+          cp /usr/arm-linux-gnueabihf/lib/*ncurses*.so* ../../../../deps/ || true
 
       - name: আর্কাইভ তৈরি করুন
         run: |
-          cd bash/build-armv7
-          mkdir -p bundle/bin bundle/lib
-          cp bin/bash bundle/bin/
-          cp ../../deps/*.so* bundle/lib/ || true
+          mkdir -p output/bin output/lib
+          cp bash/build-armv7/bin/bash output/bin/
+          cp deps/*.so* output/lib/ || true
 
-          cd bundle
-          tar -czvf ../../bash-5.3-armv7-with-deps.tar.gz .
+          cd output
+          tar -czvf $GITHUB_WORKSPACE/bash-5.3-armv7-with-deps.tar.gz .
 
       - name: Artifact আপলোড করুন
         uses: actions/upload-artifact@v4
