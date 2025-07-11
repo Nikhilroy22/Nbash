@@ -1,4 +1,4 @@
-name: Build nano for ARMv7
+name: Build Nano .deb for ARMv7
 
 on:
   workflow_dispatch:
@@ -6,60 +6,55 @@ on:
     branches: [ main ]
 
 jobs:
-  build-nano:
+  build-nano-deb:
     runs-on: ubuntu-latest
 
     steps:
-      - name: প্রয়োজনীয় টুলস ইনস্টল করুন
+      - name: প্রয়োজনীয় প্যাকেজ ইনস্টল করুন
         run: |
           sudo apt update
           sudo apt install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf \
-              make autoconf automake libtool pkg-config gettext curl
-
-      - name: NCURSES Build করুন (ARMv7)
-        run: |
-          curl -LO https://ftp.gnu.org/pub/gnu/ncurses/ncurses-6.4.tar.gz
-          tar -xf ncurses-6.4.tar.gz
-          cd ncurses-6.4
-
-          ./configure \
-            --host=arm-linux-gnueabihf \
-            --prefix=$GITHUB_WORKSPACE/ncurses-armv7 \
-            --with-shared --without-debug --without-ada --enable-widec
-
-          make -j$(nproc)
-          make install
+              make autoconf automake libtool pkg-config gettext fakeroot \
+              libncurses5-dev libncursesw5-dev curl dpkg-dev
 
       - name: Nano সোর্স কোড ডাউনলোড করুন
         run: |
           curl -LO https://www.nano-editor.org/dist/v7/nano-7.2.tar.xz
           tar -xf nano-7.2.tar.xz
 
-      - name: Nano কনফিগার ও কম্পাইল করুন (ncurses সহ)
+      - name: Nano কম্পাইল ও প্যাকেজ তৈরি (.deb)
         run: |
           cd nano-7.2
 
-          export CPPFLAGS="-I$GITHUB_WORKSPACE/ncurses-armv7/include"
-          export LDFLAGS="-L$GITHUB_WORKSPACE/ncurses-armv7/lib"
-          export PKG_CONFIG=false
+          # build path
+          mkdir -p build-armv7/usr/bin
+          mkdir -p build-armv7/DEBIAN
 
+          # nano configure and build
           ./configure \
             --host=arm-linux-gnueabihf \
-            --prefix=$PWD/build-armv7 \
+            --prefix=/usr \
             --disable-nls \
             CC=arm-linux-gnueabihf-gcc \
             CXX=arm-linux-gnueabihf-g++
 
           make -j$(nproc)
-          make install
+          make DESTDIR=$PWD/build-armv7 install
 
-      - name: আর্কাইভ তৈরি করুন
-        run: |
-          cd nano-7.2
-          tar -czvf nano-armv7.tar.gz build-armv7
+          # create control file for DEB package
+          cat <<EOF > build-armv7/DEBIAN/control
+Package: nano-armv7
+Version: 7.2
+Architecture: armhf
+Maintainer: Nikhil Roy <you@example.com>
+Description: Nano Text Editor for ARMv7
+Section: editors
+Priority: optional
+      EOF
 
-      - name: আউটপুট ফাইল আপলোড করুন
-        uses: actions/upload-artifact@v4
+          # b--build build-armv7 nano-a.deb
+          - name: .deb ফাইল আপলোড করুন
+            uses: actions/upload-artifact@v4
         with:
-          name: nano-armv7
-          path: nano-7.2/nano-armv7.tar.gz
+          name: nano-armv7-deb
+          path: nano-7.2/nano-armv7.deb
