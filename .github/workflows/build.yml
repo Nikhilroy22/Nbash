@@ -1,4 +1,4 @@
-name: Build OpenJDK 17 for ARMv7 (Android)
+name: Build OpenJDK 17 for ARMv7
 
 on:
   workflow_dispatch:
@@ -16,7 +16,7 @@ jobs:
           repository: termux/termux-packages
           path: termux-packages
 
-      - name: 🧰 Install dependencies
+      - name: 🧰 Install build dependencies
         run: |
           sudo apt update
           sudo apt install -y git curl tar zip unzip \
@@ -24,12 +24,7 @@ jobs:
             automake autoconf libtool libtool-bin \
             cmake pkg-config
 
-      - name: 🐳 Setup Termux Docker builder
-        run: |
-          cd termux-packages
-          ./scripts/setup-termux.sh
-
-      - name: 🏗️ Build OpenJDK 17 for ARM
+      - name: 🐳 Run Docker build (OpenJDK)
         run: |
           cd termux-packages
           ./scripts/run-docker.sh ./build-package.sh openjdk-17
