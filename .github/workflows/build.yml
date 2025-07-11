@@ -42,10 +42,12 @@ jobs:
       - name: Bash Configure ও Build করুন
         run: |
           cd bash
+          CC="$HOME/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi21-clang" \
+          CXX="$HOME/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi21-clang++" \
           ./configure --host=arm-linux-androideabi \
                       --prefix=$PWD/build-armv7 \
                       --without-bash-malloc \
-                     CC="$HOME/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi21-clang" \ bash_cv_func_sigsetjmp=yes \
+                      bash_cv_func_sigsetjmp=yes \
                       bash_cv_type_rlimit=rlim_t
           make -j$(nproc)
           make install
