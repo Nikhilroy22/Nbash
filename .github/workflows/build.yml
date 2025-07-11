@@ -1,36 +1,49 @@
-name: Build OpenJDK 17 for ARMv7
+name: Build PHP for ARMv7
 
 on:
-  workflow_dispatch:
-  push:
-    branches: [ main ]
+  workflow_dispatch:  # ম্যানুয়ালি ট্রিগার করতে পারবেন
 
 jobs:
-  build-openjdk:
-    runs-on: ubuntu-latest
+  build:
+    runs-on: ubuntu-latest  # Ubuntu মেশিনে রান হবে
+    name: Build PHP for ARMv7
 
     steps:
-      - name: 📁 Checkout termux-packages
-        uses: actions/checkout@v3
-        with:
-          repository: termux/termux-packages
-          path: termux-packages
+      - name: কোড ক্লোন করুন
+        uses: actions/checkout@v4
 
-      - name: 🧰 Install build dependencies
+      - name: প্রয়োজনীয় প্যাকেজ ইনস্টল করুন
         run: |
           sudo apt update
-          sudo apt install -y git curl tar zip unzip \
-            build-essential python3 texinfo \
-            automake autoconf libtool libtool-bin \
-            cmake pkg-config
+          sudo apt install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf make autoconf bison re2c libxml2-dev libssl-dev
 
-      - name: 🐳 Run Docker build (OpenJDK)
+      - name: PHP সোর্স কোড ডাউনলোড করুন
         run: |
-          cd termux-packages
-          ./scripts/run-docker.sh ./build-package.sh openjdk-17
+          curl -O https://www.php.net/distributions/php-8.2.21.tar.gz
+          tar -xzf php-8.2.21.tar.gz
+          cd php-8.2.21
 
-      - name: 📤 Upload built .deb package
+      - name: কনফিগার ও কম্পাইল
+        run: |
+          cd php-8.2.21
+          ./configure --host=arm-linux-gnueabihf --target=arm-linux-gnueabihf \
+            --disable-all \
+            --enable-cli \
+            --with-openssl \
+            CC=arm-linux-gnueabihf-gcc \
+            CXX=arm-linux-gnueabihf-g++ \
+            --prefix=$PWD/build-armv7
+
+          make -j$(nproc)
+          make install
+
+      - name: Output ফাইল আর্কাইভ করুন
+        run: |
+          cd php-8.2.21
+          tar -czvf php-armv7.tar.gz build-armv7
+
+      - name: Build Result সংরক্ষণ করুন
         uses: actions/upload-artifact@v4
         with:
-          name: openjdk-17-armv7
-          path: termux-packages/output/*.deb
+          name: php-armv7
+          path: php-8.2.21/php-armv7.tar.gz
