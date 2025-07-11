@@ -1,19 +1,23 @@
-name: Build Android CLI Tool
+name: Build OpenJDK 17 Zero for Android ARMv7
 
 on: [push, workflow_dispatch]
 
 jobs:
-  build-cli:
+  build-openjdk:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Source
+    - name: Checkout Repository
       uses: actions/checkout@v3
 
-    - name: Install Dependencies
+    - name: Install Required Dependencies
       run: |
         sudo apt update
-        sudo apt install -y unzip wget
+        sudo apt install -y \
+          build-essential autoconf zip unzip curl file \
+          libx11-dev libxext-dev libxrender-dev libxtst-dev \
+          libxt-dev libcups2-dev libasound2-dev \
+          libfreetype6-dev libxrandr-dev
 
     - name: Download Android NDK r25c
       run: |
@@ -21,26 +25,47 @@ jobs:
         unzip -q android-ndk-r25c-linux.zip
         mv android-ndk-r25c ndk
 
-    - name: Build Native CLI (hello)
+    - name: Download Boot JDK (JDK 17)
+      run: |
+        wget https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.10%2B7/OpenJDK17U-jdk_x64_linux_hotspot_17.0.10_7.tar.gz
+        tar -xf OpenJDK17U-jdk_x64_linux_hotspot_17.0.10_7.tar.gz
+        mv jdk-17.0.10+7 bootjdk
+
+    - name: Clone OpenJDK 17 Source
+      run: |
+        git clone https://github.com/openjdk/jdk17u.git
+
+    - name: Fix config.sub for Android
+      run: |
+        cd jdk17u
+        wget https://git.savannah.gnu.org/cgit/config.git/plain/config.sub \
+          -O ./make/autoconf/build-aux/config.sub
+
+    - name: Configure OpenJDK Build (Zero, ARMv7)
       run: |
         export NDK=$GITHUB_WORKSPACE/ndk
         export TOOLCHAIN=$NDK/toolchains/llvm/prebuilt/linux-x86_64
+        export PATH=$TOOLCHAIN/bin:$PATH
 
-        # Define compiler
-        export CC=$TOOLCHAIN/bin/armv7a-linux-androideabi21-clang
+        cd jdk17u
 
-        # Create output dir
-        mkdir -p out
+        bash configure \
+          --openjdk-target=arm-linux-androideabi \
+          --with-toolchain-type=clang \
+          --with-toolchain-path=$TOOLCHAIN/bin \
+          --with-boot-jdk=$GITHUB_WORKSPACE/bootjdk \
+          --with-jvm-variants=zero \
+          --with-debug-level=release \
+          --disable-warnings-as-errors \
+          --enable-headless-only
 
-        # Build the hello binary
-        $CC -static -o out/hello src/hello.c
+    - name: Build OpenJDK Images
+      run: |
+        cd jdk17u
+        make images
 
-        # Show info
-        file out/hello
-        ls -lh out/hello
-
-    - name: Upload Binary
+    - name: Upload Compiled OpenJDK Build
       uses: actions/upload-artifact@v4
       with:
-        name: android-cli-hello-armv7
-        path: out/hello
+        name: openjdk-17-zero-android-armv7
+        path: jdk17u/build/linux-arm-normal-zero-release/images
