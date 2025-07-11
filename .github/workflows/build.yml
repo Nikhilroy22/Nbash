@@ -1,7 +1,9 @@
 name: Build PHP for ARMv7
 
 on:
-  workflow_dispatch:  # ম্যানুয়ালি ট্রিগার করতে পারবেন
+  workflow_dispatch:
+  push:
+    branches: [ main ]  # ম্যানুয়ালি ট্রিগার করতে পারবেন
 
 jobs:
   build:
