@@ -1,4 +1,4 @@
-name: Build OpenJDK Zero VM for Android ARMv7
+name: Build OpenJDK 17 (Zero) for Android ARMv7
 
 on: [push, workflow_dispatch]
 
@@ -7,55 +7,62 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout
+    - name: Checkout Repo
       uses: actions/checkout@v3
 
-    - name: Install Build Dependencies
+    - name: Install Dependencies
       run: |
         sudo apt update
         sudo apt install -y \
-          git zip unzip curl file make autoconf \
-          libx11-dev libxext-dev libxrender-dev libxtst-dev libxt-dev \
-          libcups2-dev libasound2-dev libfreetype6-dev libasound2-dev \
-          libxrandr-dev libc6-dev-i386
+          build-essential autoconf zip unzip curl \
+          file libx11-dev libxext-dev libxrender-dev \
+          libxtst-dev libxt-dev libcups2-dev libasound2-dev \
+          libfreetype6-dev libxrandr-dev
 
-    - name: Download Android NDK
+    - name: Download Android NDK r25c
       run: |
         wget https://dl.google.com/android/repository/android-ndk-r25c-linux.zip
         unzip -q android-ndk-r25c-linux.zip
         mv android-ndk-r25c ndk
 
-    - name: Clone OpenJDK & Patch Target
-  run: |
-    git clone https://github.com/openjdk/jdk17u.git
-    cd jdk17u
-
-    # Override config.sub so Android is recognized
-    wget https://raw.githubusercontent.com/termux/termux-packages/master/scripts/build/config.sub \
-      -O ./make/autoconf/build-aux/config.sub
-
-    bash configure \
-      --openjdk-target=arm-linux-androideabi \
-      --with-toolchain-type=clang \
-      --with-boot-jdk=/usr/lib/jvm/java-11-openjdk-amd64 \
-      --with-jvm-variants=zero \
-      --with-debug-level=release \
-      --with-target-bits=32 \
-      --disable-warnings-as-errors \
-      --enable-headless-only
-
-    - name: Set Environment
+    - name: Setup Environment
       run: |
-        echo "PATH=$GITHUB_WORKSPACE/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH" >> $GITHUB_ENV
-        echo "CC=armv7a-linux-androideabi24-clang" >> $GITHUB_ENV
+        echo "NDK=$GITHUB_WORKSPACE/ndk" >> $GITHUB_ENV
+        echo "TOOLCHAIN=$GITHUB_WORKSPACE/ndk/toolchains/llvm/prebuilt/linux-x86_64" >> $GITHUB_ENV
+        echo "$GITHUB_WORKSPACE/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin" >> $GITHUB_PATH
+
+    - name: Clone OpenJDK Source
+      run: |
+        git clone https://github.com/openjdk/jdk17u.git
+        cd jdk17u
+        bash configure --version || true
+
+    - name: Fix config.sub for Android target
+      run: |
+        cd jdk17u
+        wget https://raw.githubusercontent.com/termux/termux-packages/master/scripts/build/config.sub \
+          -O ./make/autoconf/build-aux/config.sub
+
+    - name: Configure OpenJDK for ARMv7
+      run: |
+        cd jdk17u
+        bash configure \
+          --openjdk-target=arm-linux-androideabi \
+          --with-toolchain-type=clang \
+          --with-boot-jdk=/usr/lib/jvm/java-11-openjdk-amd64 \
+          --with-jvm-variants=zero \
+          --with-debug-level=release \
+          --with-target-bits=32 \
+          --disable-warnings-as-errors \
+          --enable-headless-only
 
     - name: Build JVM
       run: |
         cd jdk17u
         make images
 
-    - name: Upload JVM Output
+    - name: Upload JVM Binary
       uses: actions/upload-artifact@v4
       with:
-        name: openjdk-android-armv7
+        name: openjdk-17-zero-android-armv7
         path: jdk17u/build/linux-arm-normal-zero-release/images
