@@ -45,7 +45,7 @@ jobs:
           ./configure --host=arm-linux-androideabi \
                       --prefix=$PWD/build-armv7 \
                       --without-bash-malloc \
-                      bash_cv_func_sigsetjmp=yes \
+                     CC="$HOME/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi21-clang" \ bash_cv_func_sigsetjmp=yes \
                       bash_cv_type_rlimit=rlim_t
           make -j$(nproc)
           make install
