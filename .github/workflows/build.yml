@@ -1,4 +1,4 @@
-name: Build Bash 5.3 for Android ARMv7 using NDK Clang
+name: Build Bash 5.3 for Android ARMv7 using Clang
 
 on:
   push:
@@ -10,68 +10,55 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: কোড ক্লোন
+      - name: কোড ক্লোন করুন
         uses: actions/checkout@v4
 
-      - name: NDK ডাউনলোড
+      - name: Android NDK ডাউনলোড করুন
         run: |
           wget https://dl.google.com/android/repository/android-ndk-r26b-linux.zip
           unzip android-ndk-r26b-linux.zip
           mv android-ndk-r26b $HOME/android-ndk
 
-      - name: এনভায়রনমেন্ট সেটআপ
+      - name: Environment সেটআপ করুন
         run: |
           echo "NDK=$HOME/android-ndk" >> $GITHUB_ENV
           echo "API=21" >> $GITHUB_ENV
           echo "TARGET=armv7a-linux-androideabi" >> $GITHUB_ENV
           echo "TOOLCHAIN=$HOME/android-ndk/toolchains/llvm/prebuilt/linux-x86_64" >> $GITHUB_ENV
+          echo "PATH=$HOME/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH" >> $GITHUB_ENV
 
-          echo "CC=$HOME/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi21-clang" >> $GITHUB_ENV
-          echo "CXX=$HOME/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi21-clang++" >> $GITHUB_ENV
-          echo "AR=$HOME/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar" >> $GITHUB_ENV
-          echo "STRIP=$HOME/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip" >> $GITHUB_ENV
-
-      - name: Bash Source ডাউনলোড
+      - name: Bash 5.3 সোর্স ডাউনলোড
         run: |
           wget https://mirrors.kernel.org/gnu/bash/bash-5.3.tar.gz
           tar -xf bash-5.3.tar.gz
           mv bash-5.3 bash
 
-      - name: Bash Configure & Build (NDK)
+      - name: Bash Configure ও Build করুন
         run: |
           cd bash
+
           ./configure \
             --host=arm-linux-androideabi \
             --prefix=$PWD/build-armv7 \
             --without-bash-malloc \
             bash_cv_func_sigsetjmp=yes \
             bash_cv_type_rlimit=rlim_t \
-            ac_cv_func_setvbuf_reversed=no \
-            bash_cv_func_ctype_nonascii=no \
-            bash_cv_getcwd_malloc=yes \
-            bash_cv_must_reinstall_sighandlers=no \
-            bash_cv_sys_named_pipes=present \
-            bash_cv_unusable_rtsigs=no \
-            bash_cv_func_strcoll_broken=no \
-            bash_cv_have_mbstate_t=yes \
-            bash_cv_ulimit_maxfds=yes \
-            bash_cv_printf_a_format=yes \
-            bash_cv_pgrp_pipe=no \
-            bash_cv_type_rlimit=yes \
-            bash_cv_getenv_redef=no
+            CC="$HOME/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi21-clang" \
+            CXX="$HOME/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi21-clang++"
 
           make -j$(nproc)
           make install
 
       - name: আর্কাইভ তৈরি করুন
         run: |
-          mkdir -p output/bin
-          cp bash/build-armv7/bin/bash output/bin/
-          cd output
-          tar -czvf $GITHUB_WORKSPACE/bash-5.3-android-armv7.tar.gz .
+          cd bash/build-armv7
+          mkdir -p bundle/bin
+          cp bin/bash bundle/bin/
+          cd bundle
+          tar -czvf $GITHUB_WORKSPACE/bash-5.3-armv7-clang.tar.gz .
 
-      - name: Artifact আপলোড
+      - name: Artifact আপলোড করুন
         uses: actions/upload-artifact@v4
         with:
-          name: bash-5.3-android-armv7
-          path: bash-5.3-android-armv7.tar.gz
+          name: bash-5.3-armv7-clang
+          path: bash-5.3-armv7-clang.tar.gz
