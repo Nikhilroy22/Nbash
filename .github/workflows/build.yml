@@ -1,48 +1,71 @@
-name: Build Nano .deb for ARMv7
+name: Build Bash for Android ARMv7
 
 on:
-  workflow_dispatch:
   push:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
-  build-nano-deb:
+  build:
     runs-on: ubuntu-latest
+    name: Build Bash ARMv7 with Dependencies
 
     steps:
-      - name: প্রয়োজনীয় প্যাকেজ ইনস্টল করুন
+      - name: কোড ক্লোন করুন
+        uses: actions/checkout@v4
+
+      - name: প্রয়োজনীয় টুলস ইনস্টল করুন
         run: |
           sudo apt update
-          sudo apt install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf \
-              make autoconf automake libtool pkg-config gettext fakeroot \
-              libncurses5-dev libncursesw5-dev curl dpkg-dev
+          sudo apt install -y wget build-essential autoconf \
+            automake libtool git texinfo bison flex \
+            gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf \
+            qemu-user
 
-      - name: Nano সোর্স কোড ডাউনলোড করুন
+      - name: Bash সোর্স ক্লোন করুন
         run: |
-          curl -LO https://www.nano-editor.org/dist/v7/nano-7.2.tar.xz
-          tar -xf nano-7.2.tar.xz
+          git clone https://git.savannah.gnu.org/git/bash.git
+          cd bash
+          git checkout bash-5.1
 
-      - name: Nano কম্পাইল ও .deb তৈরি করুন
+      - name: Configure ও Build করুন
         run: |
-          cd nano-7.2
+          cd bash
 
-          mkdir -p build-armv7/usr/bin
-          mkdir -p build-armv7/DEBIAN
-
-          ./configure \
-            --host=arm-linux-gnueabihf \
-            --prefix=/usr \
-            --disable-nls \
-            CC=arm-linux-gnueabihf-gcc \
-            CXX=arm-linux-gnueabihf-g++
+          # স্ট্যাটিক না করে ডিপেন্ডেন্সি .so ফাইলগুলো track করবো
+          ./configure --host=arm-linux-gnueabihf \
+                      --prefix=$PWD/build-armv7 \
+                      --without-bash-malloc
 
           make -j$(nproc)
-          make DESTDIR=$PWD/build-armv7 install
+          make install
 
-          
-          # .deb build
-      - name: .deb ফাইল আপলোড করুন
+      - name: রানটাইম `.so` ডিপেন্ডেন্সি খুঁজে বের করুন
+        run: |
+          cd bash/build-armv7/bin
+          arm-linux-gnueabihf-readelf -d bash | grep NEEDED || true
+
+          mkdir -p deps
+
+          # নিদিষ্ট কিছু common lib copy করুন (optional, expand if needed)
+          cp /usr/arm-linux-gnueabihf/lib/*tinfo*.so* deps/ || true
+          cp /usr/arm-linux-gnueabihf/lib/*readline*.so* deps/ || true
+          cp /usr/arm-linux-gnueabihf/lib/*ncurses*.so* deps/ || true
+
+      - name: আর্কাইভ বানান (bash + deps)
+        run: |
+          cd bash/build-armv7
+          mkdir -p bundle/bin bundle/lib
+          cp bin/bash bundle/bin/
+
+          # deps ফোল্ডার থেকে লাইব্রেরিগুলো কপি করুন (from earlier step)
+          cp ../../deps/*.so* bundle/lib/ || true
+
+          cd bundle
+          tar -czvf ../../bash-armv7-with-deps.tar.gz .
+
+      - name: Artifact আপলোড করুন
         uses: actions/upload-artifact@v4
         with:
-          name: nano-armv7-deb
-          path: nano-7.2/nano-armv7.deb
+          name: bash-armv7-with-deps
+          path: bash-armv7-with-deps.tar.gz
