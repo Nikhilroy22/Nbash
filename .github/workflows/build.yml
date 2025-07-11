@@ -32,7 +32,7 @@ jobs:
 
       - name: Clone Bash source
         run: |
-          git clone https://git.savannah.gnu.org/git/bash.git
+          git clone https://github.com/bminor/bash.git
           cd bash
           git checkout bash-5.1
 
