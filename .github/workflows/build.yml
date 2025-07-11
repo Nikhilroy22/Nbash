@@ -25,19 +25,24 @@ jobs:
         unzip -q android-ndk-r25c-linux.zip
         mv android-ndk-r25c ndk
 
-    - name: Clone OpenJDK
-      run: |
-        git clone https://github.com/openjdk/jdk17u.git
-        cd jdk17u
-        bash configure \
-          --openjdk-target=armv7a-linux-android \
-          --with-toolchain-type=clang \
-          --with-boot-jdk=/usr/lib/jvm/java-11-openjdk-amd64 \
-          --with-jvm-variants=zero \
-          --with-debug-level=release \
-          --with-target-bits=32 \
-          --disable-warnings-as-errors \
-          --enable-headless-only
+    - name: Clone OpenJDK & Patch Target
+  run: |
+    git clone https://github.com/openjdk/jdk17u.git
+    cd jdk17u
+
+    # Override config.sub so Android is recognized
+    wget https://raw.githubusercontent.com/termux/termux-packages/master/scripts/build/config.sub \
+      -O ./make/autoconf/build-aux/config.sub
+
+    bash configure \
+      --openjdk-target=arm-linux-androideabi \
+      --with-toolchain-type=clang \
+      --with-boot-jdk=/usr/lib/jvm/java-11-openjdk-amd64 \
+      --with-jvm-variants=zero \
+      --with-debug-level=release \
+      --with-target-bits=32 \
+      --disable-warnings-as-errors \
+      --enable-headless-only
 
     - name: Set Environment
       run: |
