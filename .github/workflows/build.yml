@@ -17,20 +17,21 @@ jobs:
         run: |
           wget https://dl.google.com/android/repository/android-ndk-r26b-linux.zip
           unzip -q android-ndk-r26b-linux.zip
-          mv android-ndk-r26b android-ndk
+          mv android-ndk-r26b $HOME/android-ndk
 
       - name: Bash 5.3 সোর্স ডাউনলোড করুন
         run: |
           wget https://mirrors.kernel.org/gnu/bash/bash-5.3.tar.gz
           tar -xf bash-5.3.tar.gz
           mv bash-5.3 bash
-      
+
       - name: Environment সেটআপ ও Bash Build করুন
         run: |
           export NDK=$HOME/android-ndk
           export API=26
           export TARGET=armv7a-linux-androideabi
           export TOOLCHAIN=$NDK/toolchains/llvm/prebuilt/linux-x86_64
+
           export AR=$TOOLCHAIN/bin/llvm-ar
           export AS=$TOOLCHAIN/bin/llvm-as
           export CC=$TOOLCHAIN/bin/${TARGET}${API}-clang
@@ -39,16 +40,17 @@ jobs:
           export STRIP=$TOOLCHAIN/bin/llvm-strip
           export PATH=$TOOLCHAIN/bin:$PATH
 
-          echo "CC is set to: $CC"
+          echo "✅ CC is: $CC"
 
           cd bash
-          ./configure --host=arm-linux-androideabi \
-                      --prefix=$PWD/build-armv7 \
-                      --without-bash-malloc \
-                      CC=$CC \
-                      CXX=$CXX \
-                      bash_cv_func_sigsetjmp=yes \
-                      bash_cv_type_rlimit=rlim_t
+          CC=$CC CXX=$CXX \
+          ./configure \
+              --host=arm-linux-androideabi \
+              --prefix=$PWD/build-armv7 \
+              --without-bash-malloc \
+              bash_cv_func_sigsetjmp=yes \
+              bash_cv_type_rlimit=rlim_t
+
           make -j$(nproc)
           make install
 
