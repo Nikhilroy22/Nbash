@@ -1,70 +1,54 @@
-name: Build PHP for Android ARMv7
+name: Build Bash for ARMv7
 
-on: [push, workflow_dispatch]
+on:
+  push:
+    branches: [ main ]
 
 jobs:
-  build-php:
+  build-bash:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Repo
-      uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v3
 
-    - name: Install Build Tools
-      run: |
-        sudo apt update
-        sudo apt install -y \
-          autoconf bison re2c libxml2-dev \
-          curl unzip wget build-essential pkg-config
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y curl unzip build-essential autoconf automake libtool texinfo
 
-    - name: Download Android NDK r25c
-      run: |
-        wget https://dl.google.com/android/repository/android-ndk-r25c-linux.zip
-        unzip -q android-ndk-r25c-linux.zip
-        mv android-ndk-r25c ndk
+      - name: Download Android NDK
+        run: |
+          curl -O https://dl.google.com/android/repository/android-ndk-r25c-linux.zip
+          unzip android-ndk-r25c-linux.zip
+          mv android-ndk-r25c $HOME/ndk
 
-    - name: Clone PHP Source
-      run: |
-        git clone --depth=1 https://github.com/php/php-src.git -b PHP-8.2 php-src
+      - name: Set up NDK toolchain for ARMv7
+        run: |
+          $HOME/ndk/build/tools/make_standalone_toolchain.py \
+            --arch arm \
+            --api 21 \
+            --install-dir $HOME/arm-toolchain
 
-    - name: Configure and Build PHP for Android
-      run: |
-        export NDK=$GITHUB_WORKSPACE/ndk
-        export TOOLCHAIN=$NDK/toolchains/llvm/prebuilt/linux-x86_64
-        export API=21
-        export TARGET=armv7a-linux-androideabi
-        export SYSROOT=$TOOLCHAIN/sysroot
+      - name: Clone Bash source
+        run: |
+          git clone https://git.savannah.gnu.org/git/bash.git
+          cd bash
+          git checkout bash-5.1
 
-        export CC=$TOOLCHAIN/bin/${TARGET}${API}-clang
-        export CXX=$TOOLCHAIN/bin/${TARGET}${API}-clang++
-        export AR=$TOOLCHAIN/bin/llvm-ar
-        export RANLIB=$TOOLCHAIN/bin/llvm-ranlib
-        export STRIP=$TOOLCHAIN/bin/llvm-strip
+      - name: Configure & Build Bash for ARMv7
+        run: |
+          export PATH=$HOME/arm-toolchain/bin:$PATH
+          export CC=arm-linux-androideabi-clang
+          export AR=arm-linux-androideabi-ar
+          export RANLIB=arm-linux-androideabi-ranlib
+          cd bash
+          ./configure --host=arm-linux-androideabi --prefix=$HOME/bash-arm
+          make -j$(nproc)
+          make install
 
-        cd php-src
-
-        ./buildconf --force
-
-        ./configure \
-          --host=$TARGET \
-          --target=$TARGET \
-          --build=x86_64-pc-linux-gnu \
-          --prefix=$GITHUB_WORKSPACE/php-android \
-          --disable-all \
-          --enable-cli \
-          --without-pear \
-          CC=$CC \
-          CXX=$CXX \
-          AR=$AR \
-          RANLIB=$RANLIB \
-          STRIP=$STRIP \
-          --with-sysroot=$SYSROOT
-
-        make -j$(nproc)
-        make install
-
-    - name: Upload PHP Binary
-      uses: actions/upload-artifact@v4
-      with:
-        name: php-android-cli-armv7
-        path: php-android/bin/php
+      - name: Upload built binary
+        uses: actions/upload-artifact@v3
+        with:
+          name: bash-armv7
+          path: $HOME/bash-arm
