@@ -14,35 +14,51 @@ jobs:
         run: |
           sudo apt update
           sudo apt install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf \
-              make autoconf automake libtool pkg-config gettext \
-              libncurses5-dev libncursesw5-dev curl
+              make autoconf automake libtool pkg-config gettext curl
+
+      - name: NCURSES Build করুন (ARMv7)
+        run: |
+          curl -LO https://ftp.gnu.org/pub/gnu/ncurses/ncurses-6.4.tar.gz
+          tar -xf ncurses-6.4.tar.gz
+          cd ncurses-6.4
+
+          ./configure \
+            --host=arm-linux-gnueabihf \
+            --prefix=$GITHUB_WORKSPACE/ncurses-armv7 \
+            --with-shared --without-debug --without-ada --enable-widec
+
+          make -j$(nproc)
+          make install
 
       - name: Nano সোর্স কোড ডাউনলোড করুন
         run: |
           curl -LO https://www.nano-editor.org/dist/v7/nano-7.2.tar.xz
           tar -xf nano-7.2.tar.xz
 
-      - name: Nano কনফিগার ও কম্পাইল
+      - name: Nano কনফিগার ও কম্পাইল করুন (ncurses সহ)
         run: |
           cd nano-7.2
+
+          export CPPFLAGS="-I$GITHUB_WORKSPACE/ncurses-armv7/include"
+          export LDFLAGS="-L$GITHUB_WORKSPACE/ncurses-armv7/lib"
+          export PKG_CONFIG=false
 
           ./configure \
             --host=arm-linux-gnueabihf \
             --prefix=$PWD/build-armv7 \
             --disable-nls \
             CC=arm-linux-gnueabihf-gcc \
-            CXX=arm-linux-gnueabihf-g++ \
-            PKG_CONFIG=false
+            CXX=arm-linux-gnueabihf-g++
 
           make -j$(nproc)
           make install
 
-      - name: আর্কাইভ করুন
+      - name: আর্কাইভ তৈরি করুন
         run: |
           cd nano-7.2
           tar -czvf nano-armv7.tar.gz build-armv7
 
-      - name: ডাউনলোডযোগ্য ফাইল আপলোড করুন
+      - name: আউটপুট ফাইল আপলোড করুন
         uses: actions/upload-artifact@v4
         with:
           name: nano-armv7
