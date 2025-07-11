@@ -1,23 +1,21 @@
-name: Build OpenJDK 17 Zero for Android ARMv7
+name: Build PHP for Android ARMv7
 
 on: [push, workflow_dispatch]
 
 jobs:
-  build-openjdk:
+  build-php:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Repository
+    - name: Checkout Repo
       uses: actions/checkout@v3
 
-    - name: Install Required Dependencies
+    - name: Install Build Tools
       run: |
         sudo apt update
         sudo apt install -y \
-          build-essential autoconf zip unzip curl file \
-          libx11-dev libxext-dev libxrender-dev libxtst-dev \
-          libxt-dev libcups2-dev libasound2-dev \
-          libfreetype6-dev libxrandr-dev
+          autoconf bison re2c libxml2-dev \
+          curl unzip wget build-essential pkg-config
 
     - name: Download Android NDK r25c
       run: |
@@ -25,47 +23,48 @@ jobs:
         unzip -q android-ndk-r25c-linux.zip
         mv android-ndk-r25c ndk
 
-    - name: Download Boot JDK (JDK 17)
+    - name: Clone PHP Source
       run: |
-        wget https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.10%2B7/OpenJDK17U-jdk_x64_linux_hotspot_17.0.10_7.tar.gz
-        tar -xf OpenJDK17U-jdk_x64_linux_hotspot_17.0.10_7.tar.gz
-        mv jdk-17.0.10+7 bootjdk
+        git clone --depth=1 https://github.com/php/php-src.git -b PHP-8.2 php-src
 
-    - name: Clone OpenJDK 17 Source
-      run: |
-        git clone https://github.com/openjdk/jdk17u.git
-
-    - name: Fix config.sub for Android
-      run: |
-        cd jdk17u
-        wget https://git.savannah.gnu.org/cgit/config.git/plain/config.sub \
-          -O ./make/autoconf/build-aux/config.sub
-
-    - name: Configure OpenJDK Build (Zero, ARMv7)
+    - name: Configure and Build PHP for Android
       run: |
         export NDK=$GITHUB_WORKSPACE/ndk
         export TOOLCHAIN=$NDK/toolchains/llvm/prebuilt/linux-x86_64
-        export PATH=$TOOLCHAIN/bin:$PATH
+        export API=21
+        export TARGET=armv7a-linux-androideabi
+        export SYSROOT=$TOOLCHAIN/sysroot
 
-        cd jdk17u
+        export CC=$TOOLCHAIN/bin/${TARGET}${API}-clang
+        export CXX=$TOOLCHAIN/bin/${TARGET}${API}-clang++
+        export AR=$TOOLCHAIN/bin/llvm-ar
+        export RANLIB=$TOOLCHAIN/bin/llvm-ranlib
+        export STRIP=$TOOLCHAIN/bin/llvm-strip
 
-        bash configure \
-          --openjdk-target=arm-linux-androideabi \
-          --with-toolchain-type=clang \
-          --with-toolchain-path=$TOOLCHAIN/bin \
-          --with-boot-jdk=$GITHUB_WORKSPACE/bootjdk \
-          --with-jvm-variants=zero \
-          --with-debug-level=release \
-          --disable-warnings-as-errors \
-          --enable-headless-only
+        cd php-src
 
-    - name: Build OpenJDK Images
-      run: |
-        cd jdk17u
-        make images
+        ./buildconf --force
 
-    - name: Upload Compiled OpenJDK Build
+        ./configure \
+          --host=$TARGET \
+          --target=$TARGET \
+          --build=x86_64-pc-linux-gnu \
+          --prefix=$GITHUB_WORKSPACE/php-android \
+          --disable-all \
+          --enable-cli \
+          --without-pear \
+          CC=$CC \
+          CXX=$CXX \
+          AR=$AR \
+          RANLIB=$RANLIB \
+          STRIP=$STRIP \
+          --with-sysroot=$SYSROOT
+
+        make -j$(nproc)
+        make install
+
+    - name: Upload PHP Binary
       uses: actions/upload-artifact@v4
       with:
-        name: openjdk-17-zero-android-armv7
-        path: jdk17u/build/linux-arm-normal-zero-release/images
+        name: php-android-cli-armv7
+        path: php-android/bin/php

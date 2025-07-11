@@ -1,4 +1,4 @@
 git add .
-git commit -m "first commit"
+git commit -m "first commit pho"
 git branch -M main
 git push -u origin main
