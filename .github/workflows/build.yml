@@ -6,6 +6,13 @@ jobs:
   build-openjdk:
     runs-on: ubuntu-latest
 
+    env:
+      NDK: ${{ github.workspace }}/ndk
+      TOOLCHAIN: ${{ github.workspace }}/ndk/toolchains/llvm/prebuilt/linux-x86_64
+      PATH: ${{ github.workspace }}/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin:${{ env.PATH }}
+      CC: ${{ github.workspace }}/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi21-clang
+      CXX: ${{ github.workspace }}/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi21-clang++
+
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v3
@@ -31,12 +38,6 @@ jobs:
         tar -xf OpenJDK17U-jdk_x64_linux_hotspot_17.0.10_7.tar.gz
         mv jdk-17.0.10+7 bootjdk
 
-    - name: Setup NDK Environment
-      run: |
-        echo "NDK=$GITHUB_WORKSPACE/ndk" >> $GITHUB_ENV
-        echo "TOOLCHAIN=$GITHUB_WORKSPACE/ndk/toolchains/llvm/prebuilt/linux-x86_64" >> $GITHUB_ENV
-        echo "$GITHUB_WORKSPACE/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin" >> $GITHUB_PATH
-
     - name: Clone OpenJDK 17 Source
       run: |
         git clone https://github.com/openjdk/jdk17u.git
@@ -48,19 +49,12 @@ jobs:
           -O ./make/autoconf/build-aux/config.sub
 
     - name: Configure OpenJDK for Android ARMv7
-      env:
-        TOOLCHAIN: ${{ env.TOOLCHAIN }}
       run: |
         cd jdk17u
-
-        # Set NDK clang as compiler explicitly
-        export CC=$TOOLCHAIN/bin/armv7a-linux-androideabi21-clang
-        export CXX=$TOOLCHAIN/bin/armv7a-linux-androideabi21-clang++
-
-        # Debugging output
-        echo ">>> Using CC=$CC"
+        echo ">>> Checking compiler"
+        echo "CC=$CC"
+        echo "CXX=$CXX"
         $CC --version
-
         bash configure \
           --openjdk-target=arm-linux-androideabi \
           --with-toolchain-type=clang \
