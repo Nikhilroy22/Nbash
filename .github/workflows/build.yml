@@ -17,7 +17,7 @@ jobs:
         run: |
           wget https://dl.google.com/android/repository/android-ndk-r26b-linux.zip
           unzip -q android-ndk-r26b-linux.zip
-          mv android-ndk-r26b $HOME/android-ndk
+          mv android-ndk-r26b android-ndk
 
       - name: Bash 5.3 সোর্স ডাউনলোড করুন
         run: |
@@ -28,7 +28,7 @@ jobs:
       - name: Environment সেটআপ ও Bash Build করুন
         run: |
           export NDK=$HOME/android-ndk
-          export API=21
+          export API=26
           export TARGET=armv7a-linux-androideabi
           export TOOLCHAIN=$NDK/toolchains/llvm/prebuilt/linux-x86_64
           export AR=$TOOLCHAIN/bin/llvm-ar
