@@ -9,7 +9,6 @@ jobs:
     env:
       NDK: ${{ github.workspace }}/ndk
       TOOLCHAIN: ${{ github.workspace }}/ndk/toolchains/llvm/prebuilt/linux-x86_64
-      PATH: ${{ github.workspace }}/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin:${{ env.PATH }}
       CC: ${{ github.workspace }}/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi21-clang
       CXX: ${{ github.workspace }}/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi21-clang++
 
@@ -51,10 +50,15 @@ jobs:
     - name: Configure OpenJDK for Android ARMv7
       run: |
         cd jdk17u
+
+        # Append TOOLCHAIN to PATH
+        export PATH="$TOOLCHAIN/bin:$PATH"
+
         echo ">>> Checking compiler"
         echo "CC=$CC"
         echo "CXX=$CXX"
         $CC --version
+
         bash configure \
           --openjdk-target=arm-linux-androideabi \
           --with-toolchain-type=clang \
