@@ -17,7 +17,7 @@ jobs:
           build-essential autoconf zip unzip curl \
           file libx11-dev libxext-dev libxrender-dev \
           libxtst-dev libxt-dev libcups2-dev libasound2-dev \
-          libfreetype6-dev libxrandr-dev openjdk-11-jdk
+          libfreetype6-dev libxrandr-dev
 
     - name: Download Android NDK r25c
       run: |
@@ -25,11 +25,17 @@ jobs:
         unzip -q android-ndk-r25c-linux.zip
         mv android-ndk-r25c ndk
 
-    - name: Setup Environment
+    - name: Download JDK 17 (Boot JDK)
+      run: |
+        wget https://download.java.net/java/GA/jdk17.0.10/6/GPL/openjdk-17.0.10_linux-x64_bin.tar.gz
+        tar -xf openjdk-17.0.10_linux-x64_bin.tar.gz
+        mv jdk-17.0.10 bootjdk
+
+    - name: Setup NDK Environment
       run: |
         echo "NDK=$GITHUB_WORKSPACE/ndk" >> $GITHUB_ENV
-        echo "TOOLCHAIN=$GITHUB_WORKSPACE/ndk/toolchains/llvm/prebuilt/linux-x86_64" >> $GITHUB_ENV
-        echo "$GITHUB_WORKSPACE/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin" >> $GITHUB_PATH
+        echo "TOOLCHAIN=$NDK/toolchains/llvm/prebuilt/linux-x86_64" >> $GITHUB_ENV
+        echo "$TOOLCHAIN/bin" >> $GITHUB_PATH
 
     - name: Clone OpenJDK 17 Source
       run: |
@@ -41,13 +47,13 @@ jobs:
         wget https://git.savannah.gnu.org/cgit/config.git/plain/config.sub \
           -O ./make/autoconf/build-aux/config.sub
 
-    - name: Configure OpenJDK for ARMv7
+    - name: Configure OpenJDK for Android ARMv7
       run: |
         cd jdk17u
         bash configure \
           --openjdk-target=arm-linux-androideabi \
           --with-toolchain-type=clang \
-          --with-boot-jdk=/usr/lib/jvm/java-11-openjdk-amd64 \
+          --with-boot-jdk=$GITHUB_WORKSPACE/bootjdk \
           --with-jvm-variants=zero \
           --with-debug-level=release \
           --disable-warnings-as-errors \
