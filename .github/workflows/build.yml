@@ -26,10 +26,10 @@ jobs:
         mv android-ndk-r25c ndk
 
     - name: Download JDK 17 (Boot JDK)
-      run: |
-        wget https://download.java.net/java/GA/jdk17.0.10/6/GPL/openjdk-17.0.10_linux-x64_bin.tar.gz
-        tar -xf openjdk-17.0.10_linux-x64_bin.tar.gz
-        mv jdk-17.0.10 bootjdk
+  run: |
+    wget https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.10%2B7/OpenJDK17U-jdk_x64_linux_hotspot_17.0.10_7.tar.gz
+    tar -xf OpenJDK17U-jdk_x64_linux_hotspot_17.0.10_7.tar.gz
+    mv jdk-17.0.10+7 bootjdk
 
     - name: Setup NDK Environment
       run: |
