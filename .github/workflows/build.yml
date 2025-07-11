@@ -3,11 +3,11 @@ name: Build PHP for ARMv7
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]  # ম্যানুয়ালি ট্রিগার করতে পারবেন
+    branches: [ main ]  # ম্যানুয়ালি ও main ব্রাঞ্চে push দিলে চলবে
 
 jobs:
   build:
-    runs-on: ubuntu-latest  # Ubuntu মেশিনে রান হবে
+    runs-on: ubuntu-latest
     name: Build PHP for ARMv7
 
     steps:
@@ -17,21 +17,43 @@ jobs:
       - name: প্রয়োজনীয় প্যাকেজ ইনস্টল করুন
         run: |
           sudo apt update
-          sudo apt install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf make autoconf bison re2c libxml2-dev libssl-dev
+          sudo apt install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf \
+              make autoconf bison re2c libxml2-dev \
+              libncurses5-dev libncursesw5-dev curl \
+              perl build-essential
+
+      - name: OpenSSL সোর্স কোড ডাউনলোড ও Build (armv7)
+        run: |
+          curl -LO https://www.openssl.org/source/openssl-1.1.1w.tar.gz
+          tar -xf openssl-1.1.1w.tar.gz
+          cd openssl-1.1.1w
+
+          export CROSS_COMPILE=arm-linux-gnueabihf-
+          export CC=arm-linux-gnueabihf-gcc
+
+          ./Configure linux-armv4 \
+              --prefix=$GITHUB_WORKSPACE/openssl-armv7 \
+              no-shared no-async no-tests \
+              --cross-compile-prefix=arm-linux-gnueabihf-
+
+          make -j$(nproc)
+          make install_sw
 
       - name: PHP সোর্স কোড ডাউনলোড করুন
         run: |
           curl -O https://www.php.net/distributions/php-8.2.21.tar.gz
           tar -xzf php-8.2.21.tar.gz
-          cd php-8.2.21
 
-      - name: কনফিগার ও কম্পাইল
+      - name: কনফিগার ও কম্পাইল PHP with custom OpenSSL
         run: |
           cd php-8.2.21
-          ./configure --host=arm-linux-gnueabihf --target=arm-linux-gnueabihf \
+          ./configure \
+            --host=arm-linux-gnueabihf \
+            --target=arm-linux-gnueabihf \
             --disable-all \
             --enable-cli \
-            --with-openssl \
+            --with-openssl=$GITHUB_WORKSPACE/openssl-armv7 \
+            --with-openssl-dir=$GITHUB_WORKSPACE/openssl-armv7 \
             CC=arm-linux-gnueabihf-gcc \
             CXX=arm-linux-gnueabihf-g++ \
             --prefix=$PWD/build-armv7
