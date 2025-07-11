@@ -22,15 +22,13 @@ jobs:
           curl -LO https://www.nano-editor.org/dist/v7/nano-7.2.tar.xz
           tar -xf nano-7.2.tar.xz
 
-      - name: Nano কম্পাইল ও প্যাকেজ তৈরি (.deb)
+      - name: Nano কম্পাইল ও .deb তৈরি করুন
         run: |
           cd nano-7.2
 
-          # build path
           mkdir -p build-armv7/usr/bin
           mkdir -p build-armv7/DEBIAN
 
-          # nano configure and build
           ./configure \
             --host=arm-linux-gnueabihf \
             --prefix=/usr \
@@ -41,20 +39,10 @@ jobs:
           make -j$(nproc)
           make DESTDIR=$PWD/build-armv7 install
 
-          # create control file for DEB package
-          cat <<EOF > build-armv7/DEBIAN/control
-Package: nano-armv7
-Version: 7.2
-Architecture: armhf
-Maintainer: Nikhil Roy <you@example.com>
-Description: Nano Text Editor for ARMv7
-Section: editors
-Priority: optional
-      EOF
-
-          # b--build build-armv7 nano-a.deb
-          - name: .deb ফাইল আপলোড করুন
-            uses: actions/upload-artifact@v4
+          
+          # .deb build
+      - name: .deb ফাইল আপলোড করুন
+        uses: actions/upload-artifact@v4
         with:
           name: nano-armv7-deb
           path: nano-7.2/nano-armv7.deb
